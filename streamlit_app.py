@@ -14,11 +14,23 @@ st.set_page_config(
 # Custom CSS for dark green text
 st.markdown("""
     <style>
-        .stMarkdown, .stText, .stTitle, .stHeader {
+        div[data-testid="stText"],
+        div[data-testid="stMarkdown"],
+        div[data-testid="stHeader"],
+        div[data-baseweb="select"] > div,
+        div[data-testid="stMetricValue"],
+        div[data-testid="stMetricLabel"],
+        .streamlit-expanderHeader,
+        .stTitle,
+        p,
+        h1, h2, h3, h4, h5, h6 {
             color: #006400 !important;
         }
     </style>
-    """, unsafe_allow_html=True)
+""", unsafe_allow_html=True)
+
+# Set title with custom color
+st.markdown("<h1 style='color: #006400;'>NVIDIA Market Sentiment Backtesting</h1>", unsafe_allow_html=True)
 
 # Constants
 FINNHUB_API_KEY = st.secrets["FINNHUB_API_KEY"]
@@ -87,8 +99,6 @@ def get_historical_news(start_date, end_date):
         return None
 
 # UI
-st.title("NVIDIA Market Sentiment Backtesting")
-
 # Date inputs
 col1, col2 = st.columns(2)
 with col1:
