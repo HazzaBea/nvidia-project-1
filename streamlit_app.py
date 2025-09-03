@@ -113,9 +113,39 @@ if st.button("Run Backtest"):
             with col2:
                 st.metric("Average Sentiment", f"{avg_sentiment:.2f}")
             
-            # Calculate and display correlation
-            correlation = df['Close'].corr(sentiment)
-            st.write(f"Price-Sentiment Correlation: {correlation:.2f}")
+            # Calculate next day returns
+            df['Next_Day_Return'] = df['Close'].pct_change().shift(-1)
+            
+            # Calculate correlations
+            same_day_corr = df['Close'].corr(sentiment)
+            next_day_corr = df['Next_Day_Return'].corr(sentiment)
+            
+            # Calculate prediction accuracy
+            sentiment_signals = (sentiment > sentiment.mean()).astype(int)  # 1 if bullish, 0 if bearish
+            actual_moves = (df['Next_Day_Return'] > 0).astype(int)  # 1 if price went up, 0 if down
+            correct_predictions = (sentiment_signals == actual_moves).mean() * 100
+            
+            # Display analysis results
+            st.markdown("### Sentiment Analysis Results")
+            col1, col2, col3 = st.columns(3)
+            
+            with col1:
+                st.metric("Same-Day Correlation", f"{same_day_corr:.2f}")
+            with col2:
+                st.metric("Next-Day Correlation", f"{next_day_corr:.2f}")
+            with col3:
+                st.metric("Prediction Accuracy", f"{correct_predictions:.1f}%")
+            
+            # Add interpretation
+            st.markdown("### Interpretation")
+            st.markdown("""
+            - **Same-Day Correlation**: Shows how sentiment aligns with current price movements
+            - **Next-Day Correlation**: Shows how well sentiment predicts next day's price movement
+            - **Prediction Accuracy**: Percentage of times sentiment correctly predicted price direction
+            
+            Note: Accuracy above 50% suggests better than random guessing.
+            """)
+            
         else:
             st.error("No data available for the selected date range.")
 
