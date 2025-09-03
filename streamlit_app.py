@@ -44,11 +44,30 @@ with col2:
                             min_value=start_date,
                             max_value=datetime.now())
 
-# Generate random sentiment data (simulation)
-def generate_sentiment_data(dates):
+# Generate more realistic sentiment data (simulation)
+def generate_sentiment_data(df):
     np.random.seed(42)  # For reproducibility
-    sentiment_values = np.random.normal(loc=0.2, scale=0.3, size=len(dates))
-    return pd.Series(sentiment_values, index=dates)
+    
+    # Calculate price momentum (5-day rolling return)
+    returns = df['Close'].pct_change()
+    momentum = returns.rolling(window=5).mean()
+    
+    # Create base sentiment that follows momentum with a lag
+    base_sentiment = momentum.shift(1)  # 1-day lag
+    
+    # Add noise to make it more realistic
+    noise = np.random.normal(loc=0, scale=0.02, size=len(df))
+    
+    # Combine momentum and noise
+    sentiment = base_sentiment * 0.7 + noise
+    
+    # Normalize to [-1, 1] range
+    sentiment = (sentiment - sentiment.min()) / (sentiment.max() - sentiment.min()) * 2 - 1
+    
+    # Fill NaN values with 0
+    sentiment = sentiment.fillna(0)
+    
+    return pd.Series(sentiment, index=df.index)
 
 if st.button("Run Backtest"):
     with st.spinner("Fetching data..."):
@@ -58,7 +77,7 @@ if st.button("Run Backtest"):
         
         if not df.empty:
             # Generate simulated sentiment data
-            sentiment = generate_sentiment_data(df.index)
+            sentiment = generate_sentiment_data(df)
             
             # Create the plot with two y-axes
             fig = go.Figure()
