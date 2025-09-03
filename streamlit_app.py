@@ -44,25 +44,33 @@ with col2:
                             min_value=start_date,
                             max_value=datetime.now())
 
-# Generate more realistic sentiment data (simulation)
+# Generate market sentiment using technical indicators
 def generate_sentiment_data(df):
-    np.random.seed(42)  # For reproducibility
+    # Calculate RSI (14-day)
+    delta = df['Close'].diff()
+    gain = (delta.where(delta > 0, 0)).rolling(window=14).mean()
+    loss = (-delta.where(delta < 0, 0)).rolling(window=14).mean()
+    rs = gain / loss
+    rsi = 100 - (100 / (1 + rs))
     
-    # Calculate price momentum (5-day rolling return)
-    returns = df['Close'].pct_change()
-    momentum = returns.rolling(window=5).mean()
+    # Calculate volume trend
+    vol_ma = df['Volume'].rolling(window=20).mean()
+    vol_trend = (df['Volume'] - vol_ma) / vol_ma
     
-    # Create base sentiment that follows momentum with a lag
-    base_sentiment = momentum.shift(1)  # 1-day lag
+    # Calculate price trends
+    short_ma = df['Close'].rolling(window=5).mean()
+    long_ma = df['Close'].rolling(window=20).mean()
+    trend = (short_ma - long_ma) / long_ma
     
-    # Add noise to make it more realistic
-    noise = np.random.normal(loc=0, scale=0.02, size=len(df))
-    
-    # Combine momentum and noise
-    sentiment = base_sentiment * 0.7 + noise
+    # Combine indicators into sentiment score
+    sentiment = (
+        0.4 * (rsi - 50) / 50 +  # RSI component (normalized to [-1, 1])
+        0.3 * vol_trend +         # Volume component
+        0.3 * trend              # Trend component
+    )
     
     # Normalize to [-1, 1] range
-    sentiment = (sentiment - sentiment.min()) / (sentiment.max() - sentiment.min()) * 2 - 1
+    sentiment = sentiment.clip(-1, 1)
     
     # Fill NaN values with 0
     sentiment = sentiment.fillna(0)
@@ -162,7 +170,12 @@ if st.button("Run Backtest"):
             - **Next-Day Correlation**: Shows how well sentiment predicts next day's price movement
             - **Prediction Accuracy**: Percentage of times sentiment correctly predicted price direction
             
-            Note: Accuracy above 50% suggests better than random guessing.
+            The sentiment score is calculated using:
+            - RSI (Relative Strength Index) - measures momentum
+            - Volume trends - unusual volume often indicates strong market sentiment
+            - Moving average trends - identifies overall market direction
+            
+            Note: This technical analysis-based approach aims to capture market sentiment through actual trading patterns.
             """)
             
         else:
