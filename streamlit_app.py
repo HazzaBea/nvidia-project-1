@@ -44,38 +44,57 @@ with col2:
                             min_value=start_date,
                             max_value=datetime.now())
 
-# Generate market sentiment using technical indicators
-def generate_sentiment_data(df):
-    # Calculate RSI (14-day)
-    delta = df['Close'].diff()
-    gain = (delta.where(delta > 0, 0)).rolling(window=14).mean()
-    loss = (-delta.where(delta < 0, 0)).rolling(window=14).mean()
-    rs = gain / loss
-    rsi = 100 - (100 / (1 + rs))
+# Fetch and process news sentiment data
+def get_news_sentiment(start_date, end_date):
+    # Alpha Vantage API endpoint
+    ALPHA_VANTAGE_API_KEY = st.secrets["ALPHA_VANTAGE_API_KEY"]
+    base_url = "https://www.alphavantage.co/query"
     
-    # Calculate volume trend
-    vol_ma = df['Volume'].rolling(window=20).mean()
-    vol_trend = (df['Volume'] - vol_ma) / vol_ma
+    params = {
+        "function": "NEWS_SENTIMENT",
+        "tickers": "NVDA",
+        "time_from": start_date.strftime("%Y%m%dT0000"),
+        "time_to": end_date.strftime("%Y%m%dT2359"),
+        "limit": 1000,
+        "apikey": ALPHA_VANTAGE_API_KEY
+    }
     
-    # Calculate price trends
-    short_ma = df['Close'].rolling(window=5).mean()
-    long_ma = df['Close'].rolling(window=20).mean()
-    trend = (short_ma - long_ma) / long_ma
-    
-    # Combine indicators into sentiment score
-    sentiment = (
-        0.4 * (rsi - 50) / 50 +  # RSI component (normalized to [-1, 1])
-        0.3 * vol_trend +         # Volume component
-        0.3 * trend              # Trend component
-    )
-    
-    # Normalize to [-1, 1] range
-    sentiment = sentiment.clip(-1, 1)
-    
-    # Fill NaN values with 0
-    sentiment = sentiment.fillna(0)
-    
-    return pd.Series(sentiment, index=df.index)
+    try:
+        response = requests.get(base_url, params=params)
+        data = response.json()
+        
+        if "feed" not in data:
+            st.error(f"API Error: {data.get('Note', 'Unknown error')}")
+            return None
+            
+        # Process news articles
+        sentiment_data = []
+        for article in data["feed"]:
+            date = pd.to_datetime(article["time_published"]).strftime("%Y-%m-%d")
+            sentiment_score = float(article["overall_sentiment_score"])
+            sentiment_data.append({
+                "date": date,
+                "sentiment": sentiment_score
+            })
+        
+        # Convert to DataFrame and calculate daily average sentiment
+        if sentiment_data:
+            df_sentiment = pd.DataFrame(sentiment_data)
+            daily_sentiment = df_sentiment.groupby("date")["sentiment"].mean()
+            daily_sentiment.index = pd.to_datetime(daily_sentiment.index)
+            
+            # Forward fill missing dates
+            idx = pd.date_range(start_date, end_date)
+            daily_sentiment = daily_sentiment.reindex(idx).fillna(method='ffill').fillna(0)
+            
+            return daily_sentiment
+        else:
+            st.warning("No news sentiment data available for the selected date range")
+            return None
+            
+    except Exception as e:
+        st.error(f"Error fetching news sentiment: {str(e)}")
+        return None
 
 if st.button("Run Backtest"):
     with st.spinner("Fetching data..."):
@@ -84,8 +103,12 @@ if st.button("Run Backtest"):
         df = ticker.history(start=start_date, end=end_date)
         
         if not df.empty:
-            # Generate simulated sentiment data
-            sentiment = generate_sentiment_data(df)
+            # Get real news sentiment data
+            sentiment = get_news_sentiment(start_date, end_date)
+            
+            if sentiment is None:
+                st.error("Could not fetch sentiment data. Please try again later.")
+                return
             
             # Create the plot with two y-axes
             fig = go.Figure()
@@ -170,12 +193,13 @@ if st.button("Run Backtest"):
             - **Next-Day Correlation**: Shows how well sentiment predicts next day's price movement
             - **Prediction Accuracy**: Percentage of times sentiment correctly predicted price direction
             
-            The sentiment score is calculated using:
-            - RSI (Relative Strength Index) - measures momentum
-            - Volume trends - unusual volume often indicates strong market sentiment
-            - Moving average trends - identifies overall market direction
+            The sentiment score is calculated using real news articles about NVIDIA:
+            - Articles are analyzed for sentiment using natural language processing
+            - Multiple news sources are considered
+            - Daily sentiment scores are averaged
+            - Missing days use the last known sentiment (forward-fill)
             
-            Note: This technical analysis-based approach aims to capture market sentiment through actual trading patterns.
+            Note: This uses real market sentiment from news articles rather than technical indicators.
             """)
             
         else:
