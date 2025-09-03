@@ -8,7 +8,8 @@ import numpy as np
 # Page config
 st.set_page_config(
     page_title="NVIDIA Market Sentiment Backtesting",
-    layout="wide")eamlit as st
+    layout="wide"
+)eamlit as st
 import yfinance as yf
 import pandas as pd
 from datetime import datetime, timedelta
