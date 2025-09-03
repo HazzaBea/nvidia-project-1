@@ -1,13 +1,12 @@
 import streamlit as st
-from datetime import datetime, timedelta
-import pandas as pd
-import plotly.graph_objects as go
-from plotly.subplots import make_subplots
 import yfinance as yf
+import pandas as pd
+from datetime import datetime, timedelta
+import plotly.graph_objects as go
 
 # Page config
 st.set_page_config(
-    page_title="NVIDIA Market Sentiment Backtesting v2",  # Added version number
+    page_title="NVIDIA Market Sentiment Backtesting",
     layout="wide"
 )
 
@@ -54,37 +53,26 @@ def get_historical_data(start_date, end_date):
         st.error(f"Error fetching historical data: {str(e)}")
         return None
 
-def get_historical_news(start_date, end_date):
-    """Fetch historical news and calculate sentiment"""
+def get_simulated_sentiment(price_data):
+    """Generate simulated sentiment data based on price movements"""
     try:
-        url = f"https://finnhub.io/api/v1/company-news?symbol=NVDA&from={start_date}&to={end_date}&token={FINNHUB_API_KEY}"
-        response = requests.get(url)
-        news = response.json()
+        # Calculate daily returns
+        returns = price_data['Close'].pct_change()
         
-        # Process news and calculate daily sentiment
-        daily_sentiment = {}
+        # Generate sentiment that somewhat follows price movements but with noise
+        sentiment = returns + np.random.normal(0, 0.02, len(returns))
         
-        for article in news:
-            date = datetime.fromtimestamp(article['datetime']).strftime('%Y-%m-%d')
-            # Simulate sentiment (replace with actual sentiment analysis)
-            import random
-            sentiment = random.uniform(-1, 1)
-            
-            if date in daily_sentiment:
-                daily_sentiment[date].append(sentiment)
-            else:
-                daily_sentiment[date] = [sentiment]
+        # Normalize sentiment to [-1, 1] range
+        sentiment = sentiment / np.max(np.abs(sentiment))
         
-        # Calculate average daily sentiment
+        # Create sentiment DataFrame
         sentiment_df = pd.DataFrame({
-            'Date': daily_sentiment.keys(),
-            'Sentiment': [sum(scores)/len(scores) for scores in daily_sentiment.values()]
-        })
-        sentiment_df['Date'] = pd.to_datetime(sentiment_df['Date'])
-        sentiment_df.set_index('Date', inplace=True)
+            'Sentiment': sentiment
+        }, index=price_data.index)
+        
         return sentiment_df
     except Exception as e:
-        st.error(f"Error fetching news data: {str(e)}")
+        st.error(f"Error generating sentiment data: {str(e)}")
         return None
 
 # UI
