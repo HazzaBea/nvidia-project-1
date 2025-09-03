@@ -7,7 +7,7 @@ from plotly.subplots import make_subplots
 
 # Page config
 st.set_page_config(
-    page_title="NVIDIA Market Sentiment Backtesting",
+    page_title="NVIDIA Market Sentiment Backtesting v2",  # Added version number
     layout="wide"
 )
 
