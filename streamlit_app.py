@@ -131,8 +131,8 @@ def get_historical_news(start_date, end_date):
 col1, col2 = st.columns(2)
 with col1:
     start_date = st.date_input("Start Date", 
-                              value=datetime.now() - timedelta(days=1825),  # 5 years
-                              min_value=datetime.now() - timedelta(days=1825),
+                              value=datetime.now() - timedelta(days=365),  # 1 year
+                              min_value=datetime.now() - timedelta(days=365),
                               max_value=datetime.now())
 with col2:
     end_date = st.date_input("End Date",
@@ -181,7 +181,7 @@ if st.button("Run Backtest"):
             # Update layout
             fig.update_layout(
                 title={
-                    'text': "NVIDIA Stock Price vs Market Sentiment (5-Year View)",
+                    'text': "NVIDIA Stock Price vs Market Sentiment (1-Year View)",
                     'y':0.95,
                     'x':0.5,
                     'xanchor': 'center',
