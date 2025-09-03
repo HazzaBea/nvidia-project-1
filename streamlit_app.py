@@ -84,37 +84,15 @@ if st.button("Run Backtest"):
             
             # Update layout
             fig.update_layout(
-                title={
-                    'text': 'NVIDIA Stock Performance & Market Sentiment',
-                    'y':0.95,
-                    'x':0.5,
-                    'xanchor': 'center',
-                    'yanchor': 'top',
-                    'font': {'size': 24, 'color': '#006400'}
-                },
-                yaxis=dict(
-                    title='Stock Price (USD)',
-                    titlefont=dict(color='#76b900'),
-                    tickfont=dict(color='#76b900')
-                ),
+                title='NVIDIA Stock Performance & Market Sentiment',
+                yaxis_title='Stock Price (USD)',
                 yaxis2=dict(
                     title='Sentiment Score',
-                    titlefont=dict(color='#006400'),
-                    tickfont=dict(color='#006400'),
                     overlaying='y',
                     side='right'
                 ),
                 height=700,
-                template='plotly_white',
-                hovermode='x unified',
-                plot_bgcolor='white',
-                legend=dict(
-                    yanchor="top",
-                    y=0.99,
-                    xanchor="left",
-                    x=0.01,
-                    bgcolor='rgba(255, 255, 255, 0.8)'
-                )
+                showlegend=True
             )
             
             # Update axes
