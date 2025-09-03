@@ -103,8 +103,8 @@ def get_historical_news(start_date, end_date):
 col1, col2 = st.columns(2)
 with col1:
     start_date = st.date_input("Start Date", 
-                              value=datetime.now() - timedelta(days=30),
-                              min_value=datetime.now() - timedelta(days=365),
+                              value=datetime.now() - timedelta(days=1825),  # 5 years
+                              min_value=datetime.now() - timedelta(days=1825),
                               max_value=datetime.now())
 with col2:
     end_date = st.date_input("End Date",
@@ -126,26 +126,56 @@ if st.button("Run Backtest"):
             # Create subplot
             fig = make_subplots(specs=[[{"secondary_y": True}]])
             
-            # Add price line
+            # Add price line with area fill
             fig.add_trace(
-                go.Scatter(x=price_data.index, y=price_data['Close'],
-                          name="Stock Price", line=dict(color="blue")),
+                go.Scatter(
+                    x=price_data.index, 
+                    y=price_data['Close'],
+                    name="NVIDIA Stock Price", 
+                    line=dict(color="#76b900", width=2),  # NVIDIA's brand green
+                    fill='tonexty',
+                    fillcolor='rgba(118, 185, 0, 0.1)'  # Light green fill
+                ),
                 secondary_y=False
             )
             
             # Add sentiment line
             fig.add_trace(
-                go.Scatter(x=sentiment_data.index, y=sentiment_data['Sentiment'],
-                          name="Sentiment Score", line=dict(color="green")),
+                go.Scatter(
+                    x=sentiment_data.index, 
+                    y=sentiment_data['Sentiment'],
+                    name="Market Sentiment", 
+                    line=dict(color="#006400", width=2, dash='dot')
+                ),
                 secondary_y=True
             )
             
             # Update layout
             fig.update_layout(
-                title="NVIDIA Stock Price vs Sentiment",
+                title={
+                    'text': "NVIDIA Stock Price vs Market Sentiment (5-Year View)",
+                    'y':0.95,
+                    'x':0.5,
+                    'xanchor': 'center',
+                    'yanchor': 'top',
+                    'font': {'size': 24, 'color': '#006400'}
+                },
                 xaxis_title="Date",
-                height=600
+                plot_bgcolor='white',
+                height=700,
+                hovermode='x unified',
+                legend=dict(
+                    yanchor="top",
+                    y=0.99,
+                    xanchor="left",
+                    x=0.01,
+                    bgcolor='rgba(255, 255, 255, 0.8)'
+                )
             )
+            
+            # Update axes
+            fig.update_xaxes(showgrid=True, gridwidth=1, gridcolor='lightgray')
+            fig.update_yaxes(showgrid=True, gridwidth=1, gridcolor='lightgray')
             
             # Update y-axes labels
             fig.update_yaxes(title_text="Stock Price ($)", secondary_y=False)
