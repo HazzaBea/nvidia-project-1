@@ -12,7 +12,7 @@ st.set_page_config(
 )
 
 # Constants
-FINNHUB_API_KEY = 'd2s0nrpr01qv11lgk070d2s0nrpr01qv11lgk07g'
+FINNHUB_API_KEY = st.secrets["FINNHUB_API_KEY"]
 
 def get_historical_data(start_date, end_date):
     """Fetch historical stock data from Finnhub"""
