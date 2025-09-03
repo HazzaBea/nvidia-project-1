@@ -33,7 +33,13 @@ st.markdown("""
 st.markdown("<h1 style='color: #006400;'>NVIDIA Market Sentiment Backtesting</h1>", unsafe_allow_html=True)
 
 # Constants
-FINNHUB_API_KEY = st.secrets["FINNHUB_API_KEY"]
+try:
+    FINNHUB_API_KEY = st.secrets["FINNHUB_API_KEY"]
+    st.sidebar.success("API Key loaded successfully")
+except Exception as e:
+    st.error("Failed to load API key from secrets. Please check your Streamlit secrets configuration.")
+    st.error(f"Error: {str(e)}")
+    FINNHUB_API_KEY = None
 
 def get_historical_data(start_date, end_date):
     """Fetch historical stock data from Finnhub"""
@@ -43,10 +49,27 @@ def get_historical_data(start_date, end_date):
         end_timestamp = int(datetime.strptime(end_date, "%Y-%m-%d").timestamp())
         
         url = f"https://finnhub.io/api/v1/stock/candle?symbol=NVDA&resolution=D&from={start_timestamp}&to={end_timestamp}&token={FINNHUB_API_KEY}"
+        
+        # Debug info
+        st.write("API URL (without token):", url.split("token=")[0])
+        st.write("Date Range:", start_date, "to", end_date)
+        
         response = requests.get(url)
+        
+        # Debug response
+        st.write("API Response Status Code:", response.status_code)
+        
+        if response.status_code != 200:
+            st.error(f"API request failed with status code: {response.status_code}")
+            st.error(f"Response text: {response.text}")
+            return None
+            
         data = response.json()
         
-        if data.get('s') == 'ok':
+        # Debug API response
+        st.write("API Response:", data.get('s', 'No status'))
+        
+        if data.get('s') == 'ok' and 't' in data:
             # Create DataFrame
             df = pd.DataFrame({
                 'Date': [datetime.fromtimestamp(t) for t in data['t']],
@@ -57,12 +80,17 @@ def get_historical_data(start_date, end_date):
                 'Volume': data['v']
             })
             df.set_index('Date', inplace=True)
+            
+            # Debug dataframe
+            st.write("Data points received:", len(df))
+            
             return df
         else:
-            st.error("Failed to fetch historical data")
+            st.error(f"Failed to fetch historical data. API Response: {data}")
             return None
     except Exception as e:
         st.error(f"Error fetching historical data: {str(e)}")
+        st.write("Full error details:", str(e.__class__.__name__))
         return None
 
 def get_historical_news(start_date, end_date):
