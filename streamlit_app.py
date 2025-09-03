@@ -11,6 +11,15 @@ st.set_page_config(
     layout="wide"
 )
 
+# Custom CSS for dark green text
+st.markdown("""
+    <style>
+        .stMarkdown, .stText, .stTitle, .stHeader {
+            color: #006400 !important;
+        }
+    </style>
+    """, unsafe_allow_html=True)
+
 # Constants
 FINNHUB_API_KEY = st.secrets["FINNHUB_API_KEY"]
 
