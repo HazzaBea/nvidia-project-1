@@ -1,23 +1,154 @@
 import streamlit as st
 import requests
-from datetime import datetime
+from datetime import datetime, timedelta
+import pandas as pd
+import plotly.graph_objects as go
+from plotly.subplots import make_subplots
 
-st.title("NVIDIA Market Sentiment")
+# Page config
+st.set_page_config(
+    page_title="NVIDIA Market Sentiment Backtesting",
+    layout="wide"
+)
 
+# Constants
 FINNHUB_API_KEY = 'd2s0nrpr01qv11lgk070d2s0nrpr01qv11lgk07g'
 
-# Fetch stock price
-try:
-    response = requests.get(f"https://finnhub.io/api/v1/quote?symbol=NVDA&token={FINNHUB_API_KEY}")
-    data = response.json()
-    price = data.get('c')
-    if price:
-        st.metric("NVDA Stock Price", f"${price:.2f}")
-except Exception as e:
-    st.error(f"Error fetching stock price: {str(e)}")
+def get_historical_data(start_date, end_date):
+    """Fetch historical stock data from Finnhub"""
+    try:
+        # Convert dates to timestamps
+        start_timestamp = int(datetime.strptime(start_date, "%Y-%m-%d").timestamp())
+        end_timestamp = int(datetime.strptime(end_date, "%Y-%m-%d").timestamp())
+        
+        url = f"https://finnhub.io/api/v1/stock/candle?symbol=NVDA&resolution=D&from={start_timestamp}&to={end_timestamp}&token={FINNHUB_API_KEY}"
+        response = requests.get(url)
+        data = response.json()
+        
+        if data.get('s') == 'ok':
+            # Create DataFrame
+            df = pd.DataFrame({
+                'Date': [datetime.fromtimestamp(t) for t in data['t']],
+                'Close': data['c'],
+                'High': data['h'],
+                'Low': data['l'],
+                'Open': data['o'],
+                'Volume': data['v']
+            })
+            df.set_index('Date', inplace=True)
+            return df
+        else:
+            st.error("Failed to fetch historical data")
+            return None
+    except Exception as e:
+        st.error(f"Error fetching historical data: {str(e)}")
+        return None
 
-# Simple sentiment display
-st.subheader("Market Sentiment")
-sentiment = 0.5  # Placeholder sentiment
-st.progress(sentiment)
-st.write("Sentiment: Neutral")
+def get_historical_news(start_date, end_date):
+    """Fetch historical news and calculate sentiment"""
+    try:
+        url = f"https://finnhub.io/api/v1/company-news?symbol=NVDA&from={start_date}&to={end_date}&token={FINNHUB_API_KEY}"
+        response = requests.get(url)
+        news = response.json()
+        
+        # Process news and calculate daily sentiment
+        daily_sentiment = {}
+        
+        for article in news:
+            date = datetime.fromtimestamp(article['datetime']).strftime('%Y-%m-%d')
+            # Simulate sentiment (replace with actual sentiment analysis)
+            import random
+            sentiment = random.uniform(-1, 1)
+            
+            if date in daily_sentiment:
+                daily_sentiment[date].append(sentiment)
+            else:
+                daily_sentiment[date] = [sentiment]
+        
+        # Calculate average daily sentiment
+        sentiment_df = pd.DataFrame({
+            'Date': daily_sentiment.keys(),
+            'Sentiment': [sum(scores)/len(scores) for scores in daily_sentiment.values()]
+        })
+        sentiment_df['Date'] = pd.to_datetime(sentiment_df['Date'])
+        sentiment_df.set_index('Date', inplace=True)
+        return sentiment_df
+    except Exception as e:
+        st.error(f"Error fetching news data: {str(e)}")
+        return None
+
+# UI
+st.title("NVIDIA Market Sentiment Backtesting")
+
+# Date inputs
+col1, col2 = st.columns(2)
+with col1:
+    start_date = st.date_input("Start Date", 
+                              value=datetime.now() - timedelta(days=30),
+                              min_value=datetime.now() - timedelta(days=365),
+                              max_value=datetime.now())
+with col2:
+    end_date = st.date_input("End Date",
+                            value=datetime.now(),
+                            min_value=start_date,
+                            max_value=datetime.now())
+
+if st.button("Run Backtest"):
+    with st.spinner("Running backtest..."):
+        # Convert dates to string format
+        start_str = start_date.strftime("%Y-%m-%d")
+        end_str = end_date.strftime("%Y-%m-%d")
+        
+        # Fetch data
+        price_data = get_historical_data(start_str, end_str)
+        sentiment_data = get_historical_news(start_str, end_str)
+        
+        if price_data is not None and sentiment_data is not None:
+            # Create subplot
+            fig = make_subplots(specs=[[{"secondary_y": True}]])
+            
+            # Add price line
+            fig.add_trace(
+                go.Scatter(x=price_data.index, y=price_data['Close'],
+                          name="Stock Price", line=dict(color="blue")),
+                secondary_y=False
+            )
+            
+            # Add sentiment line
+            fig.add_trace(
+                go.Scatter(x=sentiment_data.index, y=sentiment_data['Sentiment'],
+                          name="Sentiment Score", line=dict(color="green")),
+                secondary_y=True
+            )
+            
+            # Update layout
+            fig.update_layout(
+                title="NVIDIA Stock Price vs Sentiment",
+                xaxis_title="Date",
+                height=600
+            )
+            
+            # Update y-axes labels
+            fig.update_yaxes(title_text="Stock Price ($)", secondary_y=False)
+            fig.update_yaxes(title_text="Sentiment Score", secondary_y=True)
+            
+            # Display plot
+            st.plotly_chart(fig, use_container_width=True)
+            
+            # Calculate statistics
+            price_change = ((price_data['Close'][-1] - price_data['Close'][0]) / price_data['Close'][0]) * 100
+            avg_sentiment = sentiment_data['Sentiment'].mean()
+            
+            # Display metrics
+            col1, col2 = st.columns(2)
+            with col1:
+                st.metric("Price Change", f"{price_change:.2f}%")
+            with col2:
+                st.metric("Average Sentiment", f"{avg_sentiment:.2f}")
+            
+            # Display correlation
+            correlation = price_data['Close'].corr(sentiment_data['Sentiment'])
+            st.write(f"Price-Sentiment Correlation: {correlation:.2f}")
+
+# Add a note about the sentiment calculation
+st.sidebar.info("Note: This is a demonstration using simulated sentiment scores. In a production environment, you would want to use a more sophisticated sentiment analysis model.")
